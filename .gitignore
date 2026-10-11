@@ -1,0 +1,21 @@
+# Python Virtual Environment
+.venv/
+
+# Python Cache
+__pycache__/
+*.pyc
+.pytest_cache/
+
+# Environment Variables
+.env
+
+# Raw and Processed Data
+data/raw/*
+data/processed/*
+
+# IDE Settings
+.vscode/
+
+# OS Files
+.DS_Store
+Thumbs.db
