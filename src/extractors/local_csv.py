@@ -6,10 +6,10 @@ import pandas as pd
 # 1. UN input files
 UN_FILES = {
     "Estimates":
-        "WPP2024_GEN_F01_DEMOGRAPHIC_INDICATORS_COMPACT_VN_Estimates(1).csv",
+        "WPP2024_GEN_F01_DEMOGRAPHIC_INDICATORS_COMPACT_VN_Estimates.csv",
 
     "Medium variant":
-        "WPP2024_GEN_F01_DEMOGRAPHIC_INDICATORS_COMPACT_VN_Medium_variant(1).csv",
+        "WPP2024_GEN_F01_DEMOGRAPHIC_INDICATORS_COMPACT_VN_Medium_variant.csv",
 }
 
 UN_INDICATORS = [
