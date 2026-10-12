@@ -140,7 +140,7 @@ def validate_transformed(df):
 
     # Check mandatory metadata is not empty
     text_columns = df[required].select_dtypes(
-        include="object"
+        include=["object", "str"]
     )
 
     if text_columns.apply(
