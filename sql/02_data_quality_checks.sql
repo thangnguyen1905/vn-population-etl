@@ -60,6 +60,8 @@ ORDER BY e.source, e.year, e.indicator;
 SELECT
     country_code,
     source,
+    dataset,
+    variant,
     year,
     indicator,
     COUNT(*) AS duplicate_count
@@ -67,6 +69,8 @@ FROM public.population_observations
 GROUP BY
     country_code,
     source,
+    dataset,
+    variant,
     year,
     indicator
 HAVING COUNT(*) > 1;
