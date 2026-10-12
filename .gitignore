@@ -19,3 +19,7 @@ data/processed/*
 # OS Files
 .DS_Store
 Thumbs.db
+
+# Pipeline runtime outputs
+logs/
+data/manifests/
