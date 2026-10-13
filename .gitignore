@@ -15,6 +15,7 @@ data/processed/*
 
 # IDE Settings
 .vscode/
+.idea/
 
 # OS Files
 .DS_Store
@@ -23,3 +24,6 @@ Thumbs.db
 # Pipeline runtime outputs
 logs/
 data/manifests/
+
+# Local temporary files
+*.tmp
