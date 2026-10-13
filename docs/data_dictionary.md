@@ -1,0 +1,263 @@
+# Data Dictionary — Vietnam Population ETL Pipeline
+
+## 1. Overview
+
+This document describes the standardized population dataset and its PostgreSQL database schema.
+
+| Property | Value |
+|---|---|
+| Database | `population_db` |
+| Schema | `public` |
+| Table | `population_observations` |
+| PostgreSQL Version | 17 |
+| Country | Viet Nam (VNM) |
+| Period | 2015–2024 |
+| Data Sources | World Bank, United Nations, Vietnam NSO |
+| Total Observations | 110 |
+| Number of Columns | 16 |
+
+### Table Purpose
+
+The `population_observations` table stores population statistics collected from multiple providers in a standardized long-format structure.
+
+Each row represents one population indicator for a specific country, year, source, dataset, and variant.
+
+The table preserves statistical values, units, source metadata, and ETL execution information.
+
+---
+
+## 2. Column Definitions
+
+| Column | PostgreSQL Data Type | Nullable | Description |
+|---|---|---|---|
+| `id` | BIGINT | No | Auto-generated surrogate primary key |
+| `country_code` | VARCHAR(3) | No | ISO 3166-1 alpha-3 country code |
+| `year` | SMALLINT | No | Statistical reference year |
+| `source` | VARCHAR(100) | No | Data provider name |
+| `dataset` | VARCHAR(100) | No | Source dataset identifier or name |
+| `indicator` | VARCHAR(50) | No | Standardized population indicator |
+| `value` | NUMERIC(24,12) | No | Standardized numeric value |
+| `unit` | VARCHAR(20) | No | Measurement unit of the indicator |
+| `data_status` | VARCHAR(50) | No | Statistical status recorded by the pipeline |
+| `variant` | VARCHAR(50) | No | Statistical projection or dataset variant |
+| `reference_period` | VARCHAR(50) | No | Statistical reference-period description |
+| `source_indicator` | TEXT | No | Original source indicator name or code |
+| `source_file` | TEXT | No | Path to the source file used during extraction |
+| `extract_run_id` | VARCHAR(50) | No | Identifier of the related extraction run |
+| `loaded_at` | TIMESTAMPTZ | No | Timestamp when the database row was initially inserted |
+| `updated_at` | TIMESTAMPTZ | No | Timestamp of the latest database row update |
+
+The `variant` column may contain an empty string for datasets without a named variant.
+
+The `value` column must always be interpreted together with `indicator` and `unit`.
+
+The `NUMERIC(24,12)` data type supports 24 digits of precision, including 12 digits after the decimal point.
+
+---
+
+## 3. Standardized Indicators
+
+| Indicator | Unit | Description |
+|---|---|---|
+| `total_population` | persons | Total population |
+| `male_population` | persons | Male population |
+| `female_population` | persons | Female population |
+| `population_growth_rate` | percent | Population growth rate reported by the data provider |
+
+Population count indicators are standardized to persons.
+
+Population growth rates remain in percent.
+
+For example, a published growth rate of `0.62` represents 0.62%, not 62%.
+
+Year-over-year population growth calculated in SQL or Power BI is a separate derived metric and should not automatically be treated as identical to the published `population_growth_rate`.
+
+---
+
+## 4. Source-Specific Metadata
+
+### World Bank
+
+| Field | Example |
+|---|---|
+| `source` | World Bank |
+| `dataset` | World Development Indicators |
+| `data_status` | not_specified_in_raw |
+| `variant` | Empty string |
+| `reference_period` | as_published |
+| `source_indicator` | SP.POP.TOTL |
+
+The pipeline preserves published World Bank values and their source indicator codes.
+
+The `as_published` reference-period label indicates that the pipeline does not assign an additional standardized reference date.
+
+### United Nations
+
+| Field | Example |
+|---|---|
+| `source` | United Nations |
+| `dataset` | WPP2024 |
+| `data_status` | estimate or projection |
+| `variant` | Estimates or Medium |
+| `reference_period` | july_1 for population counts |
+| `source_indicator` | Total Population, as of 1 July (thousands) |
+
+UN population values are converted from thousands of persons to persons.
+
+The 2015–2023 observations come from the Estimates dataset.
+
+The 2024 observations come from the Medium variant projection of WPP2024.
+
+The annual population growth indicator uses the `annual_growth_rate` reference-period label in the current pipeline.
+
+### Vietnam NSO
+
+| Field | Example |
+|---|---|
+| `source` | Vietnam NSO |
+| `dataset` | V02.02 |
+| `data_status` | not_specified_in_prepared_csv |
+| `variant` | Empty string |
+| `reference_period` | annual_average |
+| `source_indicator` | Tong so, Nam, or Nu |
+
+NSO observations represent annual average population figures.
+
+The prepared CSV contains total population, male population, and female population.
+
+The current NSO input does not include a published population growth indicator.
+
+The prepared CSV does not fully retain official statistical status information for each year.
+
+---
+
+## 5. Primary Key and Business Key
+
+### Primary Key
+
+The table uses `id` as a surrogate primary key.
+
+Its value is automatically generated by PostgreSQL using an identity column.
+
+### Business Unique Constraint
+
+The `uq_population_observation` constraint enforces uniqueness over:
+
+- `country_code`
+- `source`
+- `dataset`
+- `variant`
+- `year`
+- `indicator`
+
+The combination identifies one standardized observation in the current data model.
+
+It allows different sources and statistical variants to provide different values for the same country, year, and indicator.
+
+This business key is also used by the UPSERT operation during data loading.
+
+The current schema does not model multiple publication revisions of the same dataset and variant as separate observations.
+
+---
+
+## 6. Database Constraints
+
+| Constraint | Purpose |
+|---|---|
+| `population_observations_pkey` | Ensures a unique primary key |
+| `uq_population_observation` | Prevents duplicate business-key observations |
+| `chk_country_code` | Requires three uppercase country-code letters |
+| `chk_year` | Requires year to be at least 1900 |
+| `chk_indicator_unit_value` | Validates supported indicators, units, and nonnegative population counts |
+
+The database permits negative population growth rates because population may decline.
+
+The database does not directly enforce that total population equals male population plus female population.
+
+That relationship is evaluated through Data Quality Checks using project-specific tolerances.
+
+---
+
+## 7. Data Quality Rules
+
+The project validates the following dimensions:
+
+| Dimension | Validation |
+|---|---|
+| Completeness | Expected observations exist for 2015–2024 |
+| Uniqueness | Business-key duplicates are not allowed |
+| Validity | Indicators and measurement units are valid |
+| Population Consistency | Total population approximately equals male plus female population |
+| Source Lineage | Source file and extraction run information are retained |
+
+### Population Consistency Tolerances
+
+| Source | Tolerance |
+|---|---:|
+| World Bank | 1 person |
+| United Nations | 1,000 persons |
+| Vietnam NSO | 100 persons |
+
+These tolerances are technical rules selected for this project, not official statistical standards.
+
+---
+
+## 8. Data Lineage
+
+The data lineage fields help trace standardized observations back to their extraction inputs.
+
+- `source`: Identifies the original data provider.
+- `dataset`: Identifies the provider dataset.
+- `source_indicator`: Preserves the provider's original indicator name or code.
+- `source_file`: Identifies the input JSON or CSV file.
+- `extract_run_id`: Identifies the extraction execution recorded in its manifest.
+- `loaded_at`: Records when a row was first inserted.
+- `updated_at`: Records when an existing row was last updated by the loader.
+
+The loader uses UPSERT to update existing observations when tracked values or metadata differ.
+
+The current `extract_run_id` records the most recently loaded extraction associated with a row; the database table does not maintain a complete history of all previous revisions.
+
+---
+
+## 9. Example — Total Population in 2024
+
+| Source | Year | Indicator | Value | Unit | Data Status |
+|---|---|---|---:|---|---|
+| World Bank | 2024 | total_population | 100987686 | persons | not_specified_in_raw |
+| United Nations | 2024 | total_population | 100988000 | persons | projection |
+| Vietnam NSO | 2024 | total_population | 101343750 | persons | not_specified_in_prepared_csv |
+
+These values are retained as separate observations.
+
+They should not be summed together because they refer to estimates or measurements of the same national population from different providers.
+
+Differences may reflect statistical methodology, reference periods, revisions, or data status.
+
+---
+
+## 10. Related Project Files
+
+| File | Purpose |
+|---|---|
+| `sql/01_create_population_observations.sql` | PostgreSQL table definition |
+| `sql/02_data_quality_checks.sql` | SQL data quality validation |
+| `sql/03_population_analysis.sql` | SQL statistical analysis |
+| `src/run_extract.py` | Extraction orchestration |
+| `src/run_transform.py` | Data transformation |
+| `src/run_load.py` | PostgreSQL loading |
+| `docs/data_sources.md` | Data source documentation |
+| `docs/setup_guide.md` | Local setup and reproducibility |
+
+## 11. Limitations and Future Improvements
+
+The current database schema is designed for a small, single-country portfolio dataset.
+
+Possible improvements include:
+
+- Separating data sources, indicators, and observations into dimension and fact tables.
+- Supporting multiple countries.
+- Tracking source dataset revisions and publication versions.
+- Recording historical changes rather than overwriting the latest observation.
+- Adding automated source metadata verification.
+- Introducing data quality monitoring and automated reporting.

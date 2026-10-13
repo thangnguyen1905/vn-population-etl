@@ -118,6 +118,10 @@ Differences between sources should not automatically be interpreted as data erro
 - `sql/01_create_population_observations.sql` — Database schema.
 - `sql/02_data_quality_checks.sql` — SQL validation checks.
 - `sql/03_population_analysis.sql` — Population analysis queries.
+- [Data Sources](docs/data_sources.md)
+- [Setup & Reproducibility Guide](docs/setup_guide.md)
+- [Data Dictionary](docs/data_dictionary.md)
+- [Data Quality & Analysis Report](docs/data_quality_report.md)
 
 ## 9. Dashboard
 
